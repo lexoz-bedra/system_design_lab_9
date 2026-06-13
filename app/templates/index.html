@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NYC Taxi – Big Data Analysis</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <span class="logo">NYC Taxi Big Data</span>
+      <span class="subtitle">Анализ данных &amp; предсказание стоимости поездок</span>
+    </div>
+    <nav class="tab-nav" id="tab-nav">
+      <button class="tab-nav-btn active" data-tab="load">Загрузка</button>
+      <button class="tab-nav-btn locked"  data-tab="pipeline">Предобработка</button>
+      <button class="tab-nav-btn locked"  data-tab="train">Обучение</button>
+      <button class="tab-nav-btn locked"  data-tab="viz">Визуализация</button>
+    </nav>
+    <button class="theme-btn" id="theme-toggle" title="Сменить тему">
+      <span class="theme-icon">☀</span><span class="theme-label">Светлая</span>
+    </button>
+  </header>
+
+  <main>
+
+    <section class="tab-content active" id="tab-load">
+      <div class="card">
+        <h2>Загрузка данных</h2>
+
+        <div class="source-tabs">
+          <button class="source-tab active" data-source="download">Скачать с NYC TLC</button>
+          <button class="source-tab" data-source="file">Загрузить файл</button>
+        </div>
+
+        <div id="panel-download">
+          <p class="hint">Данные Yellow Taxi с <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank">NYC TLC</a> (~360 MB за квартал).</p>
+          <div class="period-form">
+            <label>Год<select id="sel-year"></select></label>
+            <label>Квартал<select id="sel-quarter"></select></label>
+            <button class="btn btn-primary" id="btn-download">Скачать</button>
+          </div>
+          <div id="download-progress-wrap" class="progress-wrap hidden">
+            <div class="progress-bar-fill" id="download-bar"></div>
+          </div>
+          <p id="download-status-text" class="hint hidden"></p>
+        </div>
+
+        <div id="panel-file" class="hidden">
+          <p class="hint">Поддерживаются файлы <strong>.parquet</strong> и <strong>.csv</strong>.</p>
+          <div class="dropzone" id="dropzone">
+            <p>Перетащите файл сюда или <label for="file-input" class="link">выберите файл</label></p>
+            <input type="file" id="file-input" accept=".parquet,.csv" hidden />
+            <p id="selected-file" class="file-name"></p>
+          </div>
+          <button class="btn btn-primary" id="btn-upload" disabled>Загрузить</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-content hidden" id="tab-pipeline">
+      <div class="card">
+        <h2>Предобработка данных</h2>
+        <div id="pipeline-steps"></div>
+      </div>
+    </section>
+
+    <section class="tab-content hidden" id="tab-train">
+      <div class="train-layout">
+        <div class="card train-left">
+          <h2>Обучение модели</h2>
+          <p class="hint">LightGBM регрессия – предсказание стоимости поездки по 7 признакам.</p>
+          <div id="data-summary" class="stats-grid" style="margin-bottom:18px"></div>
+          <button class="btn btn-secondary" id="btn-train">Запустить обучение</button>
+          <div id="train-status" class="status-msg hidden"></div>
+          <div id="metrics-block" class="metrics-grid hidden"></div>
+          <div id="feature-chart-wrap" class="hidden" style="margin-top:24px">
+            <h3 style="margin-bottom:12px;font-size:0.95rem;font-weight:600">Важность признаков</h3>
+            <div id="feature-chart"></div>
+          </div>
+        </div>
+
+        <div class="card" id="predict-panel">
+          <h2>Предсказать стоимость</h2>
+          <p class="hint">Введите параметры поездки – модель рассчитает ожидаемую стоимость.</p>
+          <div class="predict-form">
+            <label>Дистанция (мили)
+              <input type="number" id="p-distance" min="0.1" max="100" step="0.1" value="3.5" />
+            </label>
+            <label>Длительность (мин)
+              <input type="number" id="p-duration" min="1" max="180" step="1" value="15" />
+            </label>
+            <label>Час отправления (0–23)
+              <input type="number" id="p-hour" min="0" max="23" step="1" value="12" />
+            </label>
+            <label>День недели (0=пн, 6=вс)
+              <input type="number" id="p-dow" min="0" max="6" step="1" value="2" />
+            </label>
+            <label>Пассажиров (1–6)
+              <input type="number" id="p-passengers" min="1" max="6" step="1" value="1" />
+            </label>
+            <label>Зона посадки
+              <select id="p-pu"></select>
+            </label>
+            <label>Зона высадки
+              <select id="p-do"></select>
+            </label>
+            <button class="btn btn-primary" id="btn-predict" disabled>Рассчитать</button>
+          </div>
+          <div id="predict-result" class="predict-result hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-content hidden" id="tab-viz">
+      <div id="kpi-cards" class="kpi-grid"></div>
+      <div class="dash-grid">
+        <div class="card dash-card">
+          <h3>Спрос: час × день недели</h3>
+          <div id="chart-heatmap"></div>
+        </div>
+        <div class="card dash-card">
+          <h3>Топ-15 зон по выручке</h3>
+          <div id="chart-revenue"></div>
+        </div>
+        <div class="card dash-card">
+          <h3>Поездки и цена по часам</h3>
+          <div id="chart-hourly"></div>
+        </div>
+        <div class="card dash-card">
+          <h3>Распределение стоимости</h3>
+          <div id="chart-fare"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
